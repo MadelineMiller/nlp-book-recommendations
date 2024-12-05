@@ -15,16 +15,6 @@ def processing_data():
     # Read and Load the data
     df = pd.read_csv('books_data.csv.zip')
 
-    df_two = pd.read_csv('Books_rating.csv')
-
-    ratings_df = df_two[['Title', 'review/summary', 'review/text']]
-
-    ratings_df = ratings_df.rename(columns={
-        'Title': 'Title',
-        'review/summary': 'Summary',
-        'review/text': 'FullReview'
-    })
-
     # Give the columns names
     processed_df = df[['Title', 'description' , 'authors', 'publisher', 'publishedDate','infoLink' ,'categories', 'ratingsCount']]
 
@@ -45,7 +35,6 @@ def processing_data():
     
     #clean titles
     processed_df['Title'] = processed_df['Title'].str.strip().str.lower()
-    ratings_df['Title'] = ratings_df['Title'].str.strip().str.lower()
 
     #genre sorted alphabetically 
     processed_df = processed_df.sort_values(by=['Genre'])
@@ -74,19 +63,7 @@ def processing_data():
     # dropping rows with NaN after encoding
     processed_df = processed_df.dropna()
 
-    # now process ratings data based on titles that are in processed_df
-    ratings_df = ratings_df[ratings_df['Title'].isin(processed_df['Title'])]
 
-    group_reviews = ratings_df.groupby('Title').agg({
-        'Summary': lambda x: ', '.join(x.dropna().astype(str)), 
-        'FullReview': lambda x: ', '.join(x.dropna().astype(str))}).reset_index()
-
-    processed_df = processed_df.merge(group_reviews, on='Title', how='left')
-
-    processed_df['FullReview'] = processed_df['FullReview'].apply(lambda x: ' '.join([word for word in word_tokenize(str(x)) if word.lower() not in stopWords]))
-    processed_df['FullReview'] = processed_df['FullReview'].apply(lambda x: ' '.join(x.split())) #removing extra spaces
-    #print("Processed Data")
-    #print(processed_df.columns)
 
     # sending processed data to new csv file to see it
     #processed_df.to_csv('data.csv', index=False)
@@ -154,25 +131,9 @@ def get_sentiment(text):
     score = sentiment_agent.polarity_scores(str(text))
     return score['compound']
 
-def get_every_sentiment(reviews):
-    reviews = str(reviews).split(',')
-    rev = []
-    for review in reviews:
-        if review.strip():
-            rev.append(review.strip())
-    if len(rev) == 0:
-        return 0
-    scores = [get_sentiment(review) for review in rev]
-    return np.mean(scores)
 
 # Description sentiment
 out_pd['Description_Sentiment'] = out_pd['Description'].apply(get_sentiment)
-
-# Summary sentiment
-out_pd['Summary_Sentiment'] = out_pd['Summary'].apply(get_every_sentiment)
-
-# Full review sentiment
-out_pd['FullReview_Sentiment'] = out_pd['FullReview'].apply(get_every_sentiment)
 
 # add feature for publication decade
 out_pd['Decades'] = (out_pd['Date'] // 10) * 10
