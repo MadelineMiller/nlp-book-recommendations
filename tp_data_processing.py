@@ -27,7 +27,7 @@ def processing_data():
         'publishedDate': 'Date',
         'infoLink': 'Where to find',
         'categories': 'Genre',
-        'ratingsCount': 'Rating'
+        'ratingsCount': 'RatingsCount'
     })
   
     #dropping rows with NaN initially
@@ -57,8 +57,8 @@ def processing_data():
 
 
     # normalize ratings to avoid skewness
-    processed_df['Rating'] = processed_df['Rating'].apply(lambda x: np.log(x + 1))
-    print(processed_df[['Title', 'Rating']].head())
+    processed_df['RatingsCount'] = processed_df['RatingsCount'].apply(lambda x: np.log(x + 1))
+    print(processed_df[['Title', 'RatingsCount']].head())
     
     # dropping rows with NaN after encoding
     processed_df = processed_df.dropna()
@@ -113,7 +113,7 @@ def get_keywords(input, n_words=5): #should get the top words per genre
 sep_genres = out_pd.explode('Genre')
 
 # separate dataframe for genre specific features: top keywords and average log ratings by genre
-average_ratings_by_genre = sep_genres.groupby('Genre')['Rating'].mean().reset_index(name='Average Log Rating')
+average_ratings_by_genre = sep_genres.groupby('Genre')['RatingsCount'].mean().reset_index(name='Average Log Rating Count')
 genre_words = sep_genres.groupby('Genre')['Description'].apply(lambda group: get_keywords(group, n_words=5)).reset_index(name='Top Keywords')
 genre_frame = pd.merge(average_ratings_by_genre, genre_words, on='Genre')
 # genre frame has the average log ratings and top keywords for each genre
