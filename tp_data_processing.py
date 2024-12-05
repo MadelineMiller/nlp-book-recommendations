@@ -4,16 +4,17 @@ import pandas as pd
 import numpy
 import sklearn
 from sklearn.preprocessing import MultiLabelBinarizer
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 def processing_data():
     df = pd.read_csv('books_data.csv.zip')
 
-    processed_df = df[['Title', 'authors', 'publisher', 'publishedDate','infoLink' ,'categories', 'ratingsCount']]
+    processed_df = df[['Title', 'description' , 'authors', 'publisher', 'publishedDate','infoLink' ,'categories', 'ratingsCount']]
 
     #edits the names to be simple
     processed_df.rename(columns={ 
         'Title': 'Title',
+        'description': 'Description',
         'authors': 'Author',
         'publisher': 'Publisher',
         'publishedDate': 'Date',
@@ -30,28 +31,23 @@ def processing_data():
     
     #genre sorted alphabetically 
 
-    processed_df = processed_df.sort_values(by='Genre')
+    processed_df = processed_df.sort_values(by=['Genre'])
+    # print(processed_df.columns)
+    # print('\n')
+    # print(processed_df)
+    # print('\n')
+    return processed_df
+'''
+def get_keywords(): #should get the top words per genre
+    vectorizer = TfidfVectorizer(stop_words='english', max_features=3)
+    tfidf_matrix = vectorizer.fit_transforrm(group['Description'])
+    keywords = vectorizer.get_feature_names_out()
+    return ', '.join(keywords)
 
-    # #genre encoding using one hot to simplify the categories (genre)
-    # processed_df = processed_df.copy()
+#need to find a way to store those keywords (possibly new variable or in dataframe?)
+out_pd = processing_data()
+genre_keywords = out_pd.groupby('Genre').apply(lambda group: get_keywords(group['Description'])).reset_index(name:'Keywords')
 
+working on this but got to go to class
 
-    # g_processed = processed_df['Genre'].apply(lambda x: re.findall(r'\w+', str(x)) if pd.notnull else [])
-    # mlb = MultiLabelBinarizer()
-    # g_encode = mlb.fit_transform(g_processed)
-    # g_df = pd.DataFrame(g_encode, columns=mlb.classes_)
-    # processed_df = pd.concat([processed_df.reset_index(drop=True), g_df], axis=1)
-    
-
-    print(processed_df.columns)
-    print('\n')
-    print(processed_df)
-    print('\n')
-    print(processed_df['Genre'])
-
-
-
-processing_data()
-
-    
-
+'''
