@@ -1,18 +1,24 @@
 #data_processing
 import re
 import pandas as pd 
-import numpy
+import numpy as np
 import sklearn
+import ast
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 def processing_data():
+    # Read and Load the data
     df = pd.read_csv('books_data.csv.zip')
 
+    # Give the columns names
     processed_df = df[['Title', 'description' , 'authors', 'publisher', 'publishedDate','infoLink' ,'categories', 'ratingsCount']]
 
     #edits the names to be simple
-    processed_df.rename(columns={ 
+    processed_df = processed_df.rename(columns={ 
         'Title': 'Title',
         'description': 'Description',
         'authors': 'Author',
@@ -21,22 +27,54 @@ def processing_data():
         'infoLink': 'Where to find',
         'categories': 'Genre',
         'ratingsCount': 'Rating'
-    }, inplace=True)
-
-    #dropping rows with NaN
-    processed_df.dropna(inplace=True)
-
-    #adding the feature engineering
-    #processed_df['Year'] = processed_df['Date'].apply(lambda x: int(str(x)[:4]) if str(x).isdigit() else 0)
+    })
+  
+    #dropping rows with NaN initially
+    processed_df = processed_df.dropna()
     
     #genre sorted alphabetically 
-
     processed_df = processed_df.sort_values(by=['Genre'])
-    # print(processed_df.columns)
-    # print('\n')
-    # print(processed_df)
-    # print('\n')
+
+    # tokenizing description to remove stop words (english)
+        # what to do with non english stop words?
+    stopWords = set(stopwords.words('english'))
+    processed_df['Description'] = processed_df['Description'].apply(lambda x: ' '.join([word for word in word_tokenize(str(x)) if word.lower() not in stopWords]))
+    processed_df['Description'] = processed_df['Description'].apply(lambda x: ' '.join(x.split())) #removing extra spaces
+   
+    # tokenizing genres
+    # implemented MultiLabelBinarizer to encode the genres
+    processed_df['Genre'] = processed_df['Genre'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
+    processed_df['Genre'] = processed_df['Genre'].apply(lambda genres: [genre.lower() for genre in genres])
+    mlb = MultiLabelBinarizer()
+    genre_encodings = mlb.fit_transform(processed_df['Genre'])
+    genre_df = pd.DataFrame(genre_encodings, columns=mlb.classes_)
+    processed_df = pd.concat([processed_df, genre_df], axis=1)
+
+    # normalize ratings to avoid skewness
+    processed_df['Rating'] = processed_df['Rating'].apply(lambda x: np.log(x + 1))
+    print(processed_df[['Title', 'Rating']].head())
+    
+    # dropping rows with NaN after encoding
+    processed_df = processed_df.dropna()
+
+    #print("Processed Data")
+    #print(processed_df.columns)
+
+    # sending processed data to new csv file to see it
+    processed_df.to_csv('data.txt', sep='\t', index=False) 
+
+    # Checking for duplicate columns (for genres)
+    # duplicates = processed_df.columns[processed_df.columns.duplicated()]
+    # if not duplicates.empty:
+    #     print(f"Duplicate columns: {duplicates}")
+    # else:
+    #     print("No duplicate columns found.")
+
     return processed_df
+
+data = processing_data()
+
+
 '''
 def get_keywords(): #should get the top words per genre
     vectorizer = TfidfVectorizer(stop_words='english', max_features=3)
