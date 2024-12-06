@@ -11,6 +11,11 @@ from nltk.tokenize import word_tokenize
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+import nltk
+# nltk.download('stopwords')
+# nltk.download('punkt_tab')
+
+
 def processing_data():
     # Read and Load the data
     df = pd.read_csv('books_data.csv.zip')
@@ -58,7 +63,7 @@ def processing_data():
 
     # normalize ratings to avoid skewness
     processed_df['RatingsCount'] = processed_df['RatingsCount'].apply(lambda x: np.log(x + 1))
-    print(processed_df[['Title', 'RatingsCount']].head())
+    # print(processed_df[['Title', 'RatingsCount']].head())
     
     # dropping rows with NaN after encoding
     processed_df = processed_df.dropna()
@@ -68,7 +73,7 @@ def processing_data():
     # sending processed data to new csv file to see it
     #processed_df.to_csv('data.csv', index=False)
 
-    print(processed_df.info())
+    # print(processed_df.info())
 
     # Checking for duplicate columns (for genres)
     # duplicates = processed_df.columns[processed_df.columns.duplicated()]
@@ -119,7 +124,7 @@ genre_frame = pd.merge(average_ratings_by_genre, genre_words, on='Genre')
 # genre frame has the average log ratings and top keywords for each genre
     # not sure if it will be used in developing model
 genre_frame.to_csv('genre_data.csv', index=False)
-print(genre_frame.head())
+# print(genre_frame.head())
 #**************** Genre Specific Features **************** 
 
 
@@ -143,100 +148,241 @@ out_pd['Decades'] = (out_pd['Date'] // 10) * 10
 out_pd['NumberContributors'] = out_pd['Author'].apply(lambda x: len(str(x).split(',')))
 
 out_pd.to_csv('data.csv', index=False)
-print("updated out:")
-print(out_pd.head())
-print("columns:")
-print(out_pd.columns)
+# print("updated out:")
+# print(out_pd.head())
+# print("columns:")
+# print(out_pd.columns)
 
 
-# #data_processing
-# import re
-# import pandas as pd 
-# import numpy as np
-# import sklearn
-# import ast
-# import nltk
-# from nltk.corpus import stopwords
-# from nltk.tokenize import word_tokenize
-# from sklearn.preprocessing import MultiLabelBinarizer
-# from sklearn.feature_extraction.text import TfidfVectorizer
 
-# def processing_data():
-#     # Read and Load the data
-#     df = pd.read_csv('books_data.csv.zip')
+from sklearn.metrics.pairwise import cosine_similarity
 
-#     # Give the columns names
-#     processed_df = df[['Title', 'description' , 'authors', 'publisher', 'publishedDate','infoLink' ,'categories', 'ratingsCount']]
+# Load the dataset
+data = pd.read_csv("data.csv")
 
-#     #edits the names to be simple
-#     processed_df = processed_df.rename(columns={ 
-#         'Title': 'Title',
-#         'description': 'Description',
-#         'authors': 'Author',
-#         'publisher': 'Publisher',
-#         'publishedDate': 'Date',
-#         'infoLink': 'Where to find',
-#         'categories': 'Genre',
-#         'ratingsCount': 'Rating'
-#     })
-  
-#     #dropping rows with NaN initially
-#     processed_df = processed_df.dropna()
+# Fill missing values in text fields with an empty string
+data['Description'] = data['Description'].fillna("")
+data['Genre'] = data['Genre'].fillna("")
+data['Author'] = data['Author'].fillna("")
+
+# Combine important textual features for similarity computation
+data['combined_features'] = (
+    data['Description'] + " " + 
+    data['Genre'] + " " + 
+    data['Author']
+)
+
+# Initialize the TF-IDF Vectorizer
+tfidf = TfidfVectorizer(stop_words='english')
+
+# Generate the TF-IDF matrix for the combined features
+tfidf_matrix = tfidf.fit_transform(data['combined_features'])
+
+# Compute the cosine similarity matrix
+cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
+
+# book title, author, decades (instead of # of pages), genres, description
+
+def title_recommendations(title, cosine_sim=cosine_sim, data=data, top_n=10):
+    """
+    Function to get book recommendations based on a title.
+    """
+    # Get the index of the book that matches the title
+    idx = data[data['Title'].str.lower() == title.lower()].index[0]
+
+    # Get the similarity scores for all books with that book
+    sim_scores = list(enumerate(cosine_sim[idx]))
+
+    # Sort the books based on the similarity scores
+    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+
+    # Get the scores of the top_n most similar books
+    sim_scores = sim_scores[1:top_n+1]
+
+    # Get the indices of the recommended books
+    book_indices = [i[0] for i in sim_scores]
+
+    # Return the top_n most similar books
+    return data.iloc[book_indices][['Title', 'Author', 'Genre']]
+
+
+def keyword_recommendations(keywords, tfidf=tfidf, tfidf_matrix=tfidf_matrix, data=data, top_n=10):
+    """
+    Function to recommend books based on user-inputted keywords.
+    """
+    # Convert keywords into a TF-IDF vector
+    keyword_vector = tfidf.transform([keywords])
+
+    # Compute similarity scores between the keywords and all books
+    sim_scores = cosine_similarity(keyword_vector, tfidf_matrix).flatten()
+
+    # Sort books by similarity scores
+    sim_indices = sim_scores.argsort()[-top_n:][::-1]
+
+    # Return the top_n recommendations
+    return data.iloc[sim_indices][['Title', 'Author', 'Genre']]
+
+# recommendations = title_recommendations("jennings goes to school", top_n=5)
+# print("for jennings: ")
+# print(recommendations)
+
+
+# keyword_based = keyword_recommendations("mystery drama", top_n=5)
+# print("mystery drama: ")
+# print(keyword_based)
+
+# versitile
+
+# for titles
+tfidf_title = TfidfVectorizer(stop_words='english')
+tfidf_matrix_title = tfidf_title.fit_transform(data['Title'])
+cosine_sim_title = cosine_similarity(tfidf_matrix_title, tfidf_matrix_title)
+
+# for authors
+tfidf_author = TfidfVectorizer(stop_words='english')
+tfidf_matrix_author = tfidf_author.fit_transform(data['Author'])
+cosine_sim_author = cosine_similarity(tfidf_matrix_author, tfidf_matrix_author)
+
+# for decades
+data['Decades'] = data['Decades'].astype(str).fillna("")
+tfidf_decades = TfidfVectorizer()
+tfidf_matrix_decades = tfidf_decades.fit_transform(data['Decades'])
+cosine_sim_decades = cosine_similarity(tfidf_matrix_decades, tfidf_matrix_decades)
+
+# for genres
+tfidf_genre = TfidfVectorizer(stop_words='english')
+tfidf_matrix_genre = tfidf_genre.fit_transform(data['Genre'])
+cosine_sim_genre = cosine_similarity(tfidf_matrix_genre, tfidf_matrix_genre)
+tfidf_description = TfidfVectorizer(stop_words='english')
+
+# for descriptions
+tfidf_matrix_description = tfidf_description.fit_transform(data['Description'])
+cosine_sim_description = cosine_similarity(tfidf_matrix_description, tfidf_matrix_description)
+
+def get_recommendations(
+    title=None, 
+    author=None, 
+    decades=None, 
+    genres=None, 
+    description=None, 
+    top_n=10, 
+    data=data, 
+    cosine_sim_title=None, 
+    cosine_sim_author=None, 
+    cosine_sim_decades=None, 
+    cosine_sim_genre=None, 
+    cosine_sim_description=None
+):
+    """
+    Function to get book recommendations based on one or multiple features.
     
-#     #genre sorted alphabetically 
-#     processed_df = processed_df.sort_values(by=['Genre'])
-
-#     # tokenizing description to remove stop words (english)
-#         # what to do with non english stop words?
-#     stopWords = set(stopwords.words('english'))
-#     processed_df['Description'] = processed_df['Description'].apply(lambda x: ' '.join([word for word in word_tokenize(str(x)) if word.lower() not in stopWords]))
-#     processed_df['Description'] = processed_df['Description'].apply(lambda x: ' '.join(x.split())) #removing extra spaces
-   
-#     # tokenizing genres
-#     # implemented MultiLabelBinarizer to encode the genres
-#     processed_df['Genre'] = processed_df['Genre'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
-#     processed_df['Genre'] = processed_df['Genre'].apply(lambda genres: [genre.lower() for genre in genres])
-#     mlb = MultiLabelBinarizer()
-#     genre_encodings = mlb.fit_transform(processed_df['Genre'])
-#     genre_df = pd.DataFrame(genre_encodings, columns=mlb.classes_)
-#     processed_df = pd.concat([processed_df, genre_df], axis=1)
-
-#     # normalize ratings to avoid skewness
-#     processed_df['Rating'] = processed_df['Rating'].apply(lambda x: np.log(x + 1))
-#     print(processed_df[['Title', 'Rating']].head())
+    Parameters:
+        title (str): Book title to base recommendations on (optional).
+        author (str): Author to base recommendations on (optional).
+        decades (str): Decade to base recommendations on (optional).
+        genres (str): Genres to base recommendations on (optional).
+        description (str): Description to base recommendations on (optional).
+        top_n (int): Number of recommendations to return.
+        data (pd.DataFrame): The dataset containing book information.
+        cosine_sim_* (numpy.ndarray): Cosine similarity matrices for respective features.
     
-#     # dropping rows with NaN after encoding
-#     processed_df = processed_df.dropna()
+    Returns:
+        pd.DataFrame: Top N recommended books.
+    """
+    # initialize an array to store similarity scores for each book
+    total_sim_scores = np.zeros(data.shape[0])
+    
+    # normalize inputs for case insensitivity
+    data = data.apply(lambda x: x.str.lower() if x.dtype == "object" else x)
+    title = title.lower().strip() if title else None
+    author = author.lower().strip() if author else None
+    decades = decades.lower().strip() if decades else None
+    genres = genres.lower().strip() if genres else None
+    description = description.lower().strip() if description else None
+    
+    # compute similarity for each feature if provided
+    if title and cosine_sim_title is not None:
+        idx = data[data['Title'] == title].index
+        if not idx.empty:
+            idx = idx[0]
+            total_sim_scores += cosine_sim_title[idx]
+    
+    if author and cosine_sim_author is not None:
+        idx = data[data['Author'] == author].index
+        if not idx.empty:
+            idx = idx[0]
+            total_sim_scores += cosine_sim_author[idx]
+    
+    if decades and cosine_sim_decades is not None:
+        idx = data[data['Decades'] == decades].index
+        if not idx.empty:
+            idx = idx[0]
+            total_sim_scores += cosine_sim_decades[idx]
+    
+    if genres and cosine_sim_genre is not None:
+        idx = data[data['Genre'] == genres].index
+        if not idx.empty:
+            idx = idx[0]
+            total_sim_scores += cosine_sim_genre[idx]
+    
+    if description and cosine_sim_description is not None:
+        # use TF-IDF to vectorize the input description
+        desc_vector = tfidf_description.transform([description])
+        sim_scores = cosine_similarity(desc_vector, tfidf_matrix_description).flatten()
+        total_sim_scores += sim_scores
+    
+    # rank the books by total similarity scores
+    data['Similarity'] = total_sim_scores
+    recommendations = data.sort_values(by='Similarity', ascending=False).head(top_n)
+    
+    # return the recommended books
+    return recommendations[['Title', 'Author', 'Genre', 'Decades', 'Description']].reset_index(drop=True)
 
-#     #print("Processed Data")
-#     #print(processed_df.columns)
+print("\n1:\n")
+title_recommendations = get_recommendations(
+    title="jennings goes to school", 
+    top_n=5, 
+    cosine_sim_title=cosine_sim_title
+)
+print(title_recommendations)
 
-#     # sending processed data to new csv file to see it
-#     processed_df.to_csv('data.txt', sep='\t', index=False) 
+print("\n2:\n")
+multi_feature_recommendations = get_recommendations(
+    title="jennings goes to school",
+    author="anthony buckeridge",
+    genres="children's stories",
+    description="riotous fire practice",
+    top_n=5,
+    cosine_sim_title=cosine_sim_title,
+    cosine_sim_author=cosine_sim_author,
+    cosine_sim_genre=cosine_sim_genre,
+    cosine_sim_description=cosine_sim_description
+)
+print(multi_feature_recommendations)
 
-#     # Checking for duplicate columns (for genres)
-#     # duplicates = processed_df.columns[processed_df.columns.duplicated()]
-#     # if not duplicates.empty:
-#     #     print(f"Duplicate columns: {duplicates}")
-#     # else:
-#     #     print("No duplicate columns found.")
+print("\n3:\n")
+decades_recommendations = get_recommendations(
+    decades="2000",
+    top_n=5,
+    cosine_sim_decades=cosine_sim_decades
+)
+print(decades_recommendations)
 
-#     return processed_df
+print("\n4:\n")
+genre_author_recommendations = get_recommendations(
+    genres="children's stories",
+    author="anthony buckeridge",
+    top_n=5,
+    cosine_sim_genre=cosine_sim_genre,
+    cosine_sim_author=cosine_sim_author
+)
+print(genre_author_recommendations)
 
-# data = processing_data()
-
-
-# '''
-# def get_keywords(): #should get the top words per genre
-#     vectorizer = TfidfVectorizer(stop_words='english', max_features=3)
-#     tfidf_matrix = vectorizer.fit_transforrm(group['Description'])
-#     keywords = vectorizer.get_feature_names_out()
-#     return ', '.join(keywords)
-
-# #need to find a way to store those keywords (possibly new variable or in dataframe?)
-# out_pd = processing_data()
-# genre_keywords = out_pd.groupby('Genre').apply(lambda group: get_keywords(group['Description'])).reset_index(name:'Keywords')
-
-# working on this but got to go to class
-
-# '''
+print("\n5:\n")
+description_recommendations = get_recommendations(
+    description="A thrilling adventure in a mysterious world",
+    top_n=5,
+    tfidf_description=tfidf_description,
+    tfidf_matrix_description=tfidf_matrix_description
+)
+print(description_recommendations)
