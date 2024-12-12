@@ -1,5 +1,6 @@
 ## Demo
-![Uploading nlp-book-recommender-demo.gif…]()
+
+![nlp-book-recommender-demo](https://github.com/user-attachments/assets/bab2e192-7a74-41bb-8280-5526fa897031)
 
 
 
