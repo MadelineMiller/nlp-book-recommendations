@@ -14,6 +14,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import nltk
 # nltk.download('stopwords')
 # nltk.download('punkt_tab')
+# nltk.download('vader_lexicon')
 
 
 def processing_data():
@@ -48,16 +49,31 @@ def processing_data():
     processed_df['Date'] = pd.to_datetime(processed_df['Date'], errors='coerce').dt.year
     processed_df = processed_df.dropna(subset=['Date'])
     processed_df['Date'] = processed_df['Date'].astype('Int64')
+    # smallest_year = processed_df['Date'].min()
 
     # tokenizing description to remove stop words (english)
         # what to do with non english stop words?
     stopWords = set(stopwords.words('english'))
     processed_df['Description'] = processed_df['Description'].apply(lambda x: ' '.join([word for word in word_tokenize(str(x)) if word.lower() not in stopWords]))
     processed_df['Description'] = processed_df['Description'].apply(lambda x: ' '.join(x.split())) #removing extra spaces
-   
+    
+    # unique_genres = set()
+    # for genres in processed_df['Genre']:
+    #     if isinstance(genres, str):
+    #         # Split genres by comma, remove extra spaces and characters
+    #         genres_list = [genre.strip("[]'\" ").lower() for genre in genres.split(',')]
+    #         unique_genres.update(genres_list)
+    #     else:
+    #         # Handle non-string genres (optional, depending on your data)
+    #         # You can convert them to strings or skip them based on your needs
+    #         pass
+
+    # print(f"Unique Genres: {unique_genres}")
     # tokenizing genres
     # implemented MultiLabelBinarizer to encode the genres
     processed_df['Genre'] = processed_df['Genre'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
+    
+    
     processed_df['Genre'] = processed_df['Genre'].apply(lambda genres: [genre.lower() for genre in genres])
 
 
@@ -86,6 +102,7 @@ def processing_data():
 
 # output of processing_data function
 out_pd = processing_data()
+# print(f"Smallest year: {smallest_year}") --> 1776
 
 ################### Feature Engineering ####################
 
@@ -297,7 +314,10 @@ def get_recommendations(
     title = title.lower().strip() if title else None
     author = author.lower().strip() if author else None
     decades = decades.lower().strip() if decades else None
-    genres = genres.lower().strip() if genres else None
+    if genres:
+        genres = [genre.lower().strip() for genre in genres]
+    else:
+        genres = None
     description = description.lower().strip() if description else None
     
     # compute similarity for each feature if provided
@@ -320,7 +340,7 @@ def get_recommendations(
             total_sim_scores += cosine_sim_decades[idx]
     
     if genres and cosine_sim_genre is not None:
-        idx = data[data['Genre'] == genres].index
+        idx = data[data['Genre'].isin(genres)].index
         if not idx.empty:
             idx = idx[0]
             total_sim_scores += cosine_sim_genre[idx]
@@ -338,51 +358,53 @@ def get_recommendations(
     # return the recommended books
     return recommendations[['Title', 'Author', 'Genre', 'Decades', 'Description']].reset_index(drop=True)
 
-print("\n1:\n")
-title_recommendations = get_recommendations(
-    title="jennings goes to school", 
-    top_n=5, 
-    cosine_sim_title=cosine_sim_title
-)
-print(title_recommendations)
 
-print("\n2:\n")
-multi_feature_recommendations = get_recommendations(
-    title="jennings goes to school",
-    author="anthony buckeridge",
-    genres="children's stories",
-    description="riotous fire practice",
-    top_n=5,
-    cosine_sim_title=cosine_sim_title,
-    cosine_sim_author=cosine_sim_author,
-    cosine_sim_genre=cosine_sim_genre,
-    cosine_sim_description=cosine_sim_description
-)
-print(multi_feature_recommendations)
+#TEST CASES
+# print("\n1:\n")
+# title_recommendations = get_recommendations(
+#     title="jennings goes to school", 
+#     top_n=5, 
+#     cosine_sim_title=cosine_sim_title
+# )
+# print(title_recommendations)
 
-print("\n3:\n")
-decades_recommendations = get_recommendations(
-    decades="2000",
-    top_n=5,
-    cosine_sim_decades=cosine_sim_decades
-)
-print(decades_recommendations)
+# print("\n2:\n")
+# multi_feature_recommendations = get_recommendations(
+#     title="jennings goes to school",
+#     author="anthony buckeridge",
+#     genres="children's stories",
+#     description="riotous fire practice",
+#     top_n=5,
+#     cosine_sim_title=cosine_sim_title,
+#     cosine_sim_author=cosine_sim_author,
+#     cosine_sim_genre=cosine_sim_genre,
+#     cosine_sim_description=cosine_sim_description
+# )
+# print(multi_feature_recommendations)
 
-print("\n4:\n")
-genre_author_recommendations = get_recommendations(
-    genres="children's stories",
-    author="anthony buckeridge",
-    top_n=5,
-    cosine_sim_genre=cosine_sim_genre,
-    cosine_sim_author=cosine_sim_author
-)
-print(genre_author_recommendations)
+# print("\n3:\n")
+# decades_recommendations = get_recommendations(
+#     decades="2000",
+#     top_n=5,
+#     cosine_sim_decades=cosine_sim_decades
+# )
+# print(decades_recommendations)
 
-print("\n5:\n")
-description_recommendations = get_recommendations(
-    description="A thrilling adventure in a mysterious world",
-    top_n=5,
-    tfidf_description=tfidf_description,
-    tfidf_matrix_description=tfidf_matrix_description
-)
-print(description_recommendations)
+# print("\n4:\n")
+# genre_author_recommendations = get_recommendations(
+#     genres="children's stories",
+#     author="anthony buckeridge",
+#     top_n=5,
+#     cosine_sim_genre=cosine_sim_genre,
+#     cosine_sim_author=cosine_sim_author
+# )
+# print(genre_author_recommendations)
+
+# print("\n5:\n")
+# description_recommendations = get_recommendations(
+#     description="A thrilling adventure in a mysterious world",
+#     top_n=5,
+#     tfidf_description=tfidf_description,
+#     tfidf_matrix_description=tfidf_matrix_description
+# )
+# print(description_recommendations)
