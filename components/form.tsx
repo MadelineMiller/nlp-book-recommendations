@@ -48,6 +48,11 @@ const formSchema = z.object({
   name_7948944962: z.number().optional(),
   name_6717152066: z.array(z.string()).nonempty("Please select at least one item"),
   name_7441719795: z.string().optional(),
+  num_recs: z
+    .preprocess(
+      (val) => (val === undefined || val === "" ? 5 : Number(val)), // Default to 5 if undefined or empty
+      z.number().min(1).max(15)
+    ),
 });
 
 export default function MyForm() {
@@ -75,7 +80,7 @@ export default function MyForm() {
         decades: encodeURIComponent(values.name_7948944962?.toString() || ""),
         genres: encodeURIComponent(values.name_6717152066.join(",")) || "",
         description: encodeURIComponent(values.name_7441719795 || ""),
-        top_n: "5",
+        top_n: values.num_recs?.toString() || "5", // Use user's input or default to 5
       }).toString();
 
       console.log("Generated Query String:", queryParams);
@@ -116,6 +121,30 @@ export default function MyForm() {
           <p className="text-center text-gray-600">
             Fill out the details below to get personalized book recommendations.
           </p>
+            
+          {/* Number of Recommendations */}
+          <FormField
+            control={form.control}
+            name="num_recs"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-lg font-medium">Number of Recommendations</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    placeholder="Enter a number between 1 and 15"
+                    {...field}
+                    className="text-base p-4 border-gray-300 rounded-md"
+                  />
+                </FormControl>
+                <FormDescription className="text-sm text-gray-500">
+                  Default is 5 recommendations.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
 
           {/* Book Title */}
           <FormField
