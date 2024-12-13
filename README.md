@@ -8,7 +8,17 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Make sure that you have installed flask-cors:
+```
+pip install flask-cors
+```
+
+First, run the Flask server in one terminal:
+```
+python3 app.py
+```
+
+Second, in another separate terminal, run the development server:
 
 ```bash
 npm run dev
