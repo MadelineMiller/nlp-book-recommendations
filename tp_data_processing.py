@@ -359,7 +359,7 @@ def get_recommendations(
     return recommendations[['Title', 'Author', 'Genre', 'Decades', 'Description']].reset_index(drop=True)
 
 
-#TEST CASES
+# TEST CASES
 # print("\n1:\n")
 # title_recommendations = get_recommendations(
 #     title="jennings goes to school", 
@@ -403,8 +403,6 @@ def get_recommendations(
 # print("\n5:\n")
 # description_recommendations = get_recommendations(
 #     description="A thrilling adventure in a mysterious world",
-#     top_n=5,
-#     tfidf_description=tfidf_description,
-#     tfidf_matrix_description=tfidf_matrix_description
+#     top_n=5
 # )
 # print(description_recommendations)
